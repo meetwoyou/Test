@@ -1,0 +1,16 @@
+{
+  "name": "Meetwoyou - Connect. Chat. Meet.",
+  "short_name": "Meetwoyou",
+  "description": "A modern social media platform to connect with the world.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait",
+  "categories": ["social", "communication", "lifestyle"],
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

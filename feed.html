@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#0b1020"/>
+<title>Feed · Meetwoyou</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" href="assets/favicon.svg"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="header"></div>
+  <section class="stories" id="stories"></section>
+  <div class="composer">
+    <img class="avatar" id="meAvatar" src=""/>
+    <input id="composerInput" placeholder="What's on your mind?" readonly onclick="openComposer()"/>
+    <div class="composer-actions">
+      <a class="icon-btn" href="camera.html" title="Camera"><i class="fa-solid fa-camera"></i></a>
+    </div>
+  </div>
+  <section id="feed"></section>
+</div>
+
+<!-- Composer modal -->
+<div class="modal-back" id="composerModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x icon-btn" onclick="closeComposer()"><i class="fa-solid fa-xmark"></i></button>
+    <h3>Create post</h3>
+    <textarea class="input" id="newPostText" placeholder="Share something..." style="margin-bottom:10px"></textarea>
+    <input id="newPostImg" type="file" accept="image/*" style="display:none" onchange="previewImg(this)"/>
+    <img id="newPostPreview" style="display:none;border-radius:12px;margin-bottom:10px;max-height:240px;width:100%;object-fit:cover"/>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-sm" onclick="document.getElementById('newPostImg').click()"><i class="fa-regular fa-image"></i> Photo</button>
+      <a class="btn btn-sm" href="camera.html"><i class="fa-solid fa-camera"></i> Camera</a>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="publishPost()">Publish</button>
+  </div>
+</div>
+
+<!-- Story viewer -->
+<div class="story-viewer" id="storyViewer">
+  <div class="sv-bar"><div class="fill" id="svFill"></div></div>
+  <div class="sv-meta"><img id="svAvatar"/><span id="svName"></span></div>
+  <button class="sv-close" onclick="closeStory()"><i class="fa-solid fa-xmark"></i></button>
+  <img class="sv-img" id="svImg"/>
+</div>
+
+<div id="nav"></div>
+<script src="assets/app.js"></script>
+<script>
+const me = MW.Auth.require();
+document.getElementById('header').innerHTML = MW.headerHTML('Meetwoyou');
+document.getElementById('nav').innerHTML = MW.navHTML('home');
+document.getElementById('meAvatar').src = me.avatar;
+
+function renderStories(){
+  const s = MW.Store.get();
+  const el = document.getElementById('stories');
+  el.innerHTML = `<div class="story" onclick="location.href='camera.html'">
+    <div class="story-ring me story-add"><img src="${me.avatar}"/></div>
+    <div class="story-name">Your story</div></div>` +
+    s.stories.map(st=>{
+      const u = MW.user(st.userId);
+      return `<div class="story" onclick="openStory('${st.id}')">
+        <div class="story-ring ${st.seen?'seen':''}"><img src="${u.avatar}"/></div>
+        <div class="story-name">${u.name.split(' ')[0]}</div></div>`;
+    }).join('');
+}
+
+function renderFeed(){
+  const s = MW.Store.get();
+  const el = document.getElementById('feed');
+  el.innerHTML = s.posts.map(p=>{
+    const u = MW.user(p.userId);
+    return `<article class="post" data-id="${p.id}">
+      <div class="post-head">
+        <img src="${u.avatar}"/>
+        <div class="meta">
+          <div class="name">${u.name}${u.verified?' <i class="fa-solid fa-circle-check verified"></i>':''}</div>
+          <div class="time">@${u.username||'user'} · ${MW.timeAgo(p.time)}</div>
+        </div>
+        <button class="icon-btn"><i class="fa-solid fa-ellipsis"></i></button>
+      </div>
+      ${p.text?`<div class="post-body">${escapeHtml(p.text)}</div>`:''}
+      ${p.image?`<div class="post-media"><img src="${p.image}" loading="lazy"/></div>`:''}
+      <div class="post-actions">
+        <button onclick="toggleLike('${p.id}',this)" class="${p.liked?'liked':''}"><i class="fa-${p.liked?'solid':'regular'} fa-heart"></i> <span>${p.likes}</span></button>
+        <button><i class="fa-regular fa-comment"></i> <span>${p.comments}</span></button>
+        <button onclick="MW.toast('Shared!')"><i class="fa-regular fa-paper-plane"></i></button>
+        <button onclick="toggleSave('${p.id}',this)" class="${p.saved?'saved':''}"><i class="fa-${p.saved?'solid':'regular'} fa-bookmark"></i></button>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+function toggleLike(id,btn){
+  MW.Store.update(s=>{ const p = s.posts.find(x=>x.id===id); if(!p) return; p.liked=!p.liked; p.likes += p.liked?1:-1; });
+  renderFeed();
+}
+function toggleSave(id,btn){
+  MW.Store.update(s=>{ const p = s.posts.find(x=>x.id===id); if(!p) return; p.saved=!p.saved; });
+  MW.toast(btn.classList.contains('saved')?'Removed from saved':'Saved');
+  renderFeed();
+}
+
+function openComposer(){
+  // If camera-captured image is pending
+  const pending = sessionStorage.getItem('mw_pending_photo');
+  if(pending){ document.getElementById('newPostPreview').src=pending; document.getElementById('newPostPreview').style.display='block'; sessionStorage.removeItem('mw_pending_photo'); }
+  document.getElementById('composerModal').classList.add('open');
+}
+function closeComposer(){ document.getElementById('composerModal').classList.remove('open'); }
+function previewImg(input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader(); r.onload=e=>{ const img=document.getElementById('newPostPreview'); img.src=e.target.result; img.style.display='block'; }; r.readAsDataURL(f);
+}
+function publishPost(){
+  const text = document.getElementById('newPostText').value.trim();
+  const img = document.getElementById('newPostPreview').src;
+  if(!text && !img){ MW.toast('Add text or an image'); return; }
+  MW.Store.update(s=>{ s.posts.unshift({id:'p'+Date.now(), userId:'me_user', text, image:(img.startsWith('data:')||img.startsWith('http'))?img:'', likes:0, comments:0, liked:false, saved:false, time:Date.now()}); 
+    if(!s.users.find(u=>u.id==='me_user')) s.users.push({id:'me_user', name:me.name, username:me.username, avatar:me.avatar, bio:me.bio, followers:0, following:0, verified:false});
+  });
+  document.getElementById('newPostText').value=''; document.getElementById('newPostPreview').src=''; document.getElementById('newPostPreview').style.display='none';
+  closeComposer(); renderFeed(); MW.toast('Posted!');
+}
+
+// Story viewer
+let svTimer=null;
+function openStory(id){
+  const st = MW.Store.get().stories.find(x=>x.id===id); if(!st) return;
+  const u = MW.user(st.userId);
+  document.getElementById('svImg').src = st.image;
+  document.getElementById('svAvatar').src = u.avatar;
+  document.getElementById('svName').textContent = u.name;
+  document.getElementById('storyViewer').classList.add('open');
+  let p=0; const fill=document.getElementById('svFill'); fill.style.width='0';
+  svTimer=setInterval(()=>{ p+=2; fill.style.width=p+'%'; if(p>=100){ closeStory(); }},100);
+  MW.Store.update(s=>{ const x=s.stories.find(y=>y.id===id); if(x) x.seen=true; });
+}
+function closeStory(){ clearInterval(svTimer); document.getElementById('storyViewer').classList.remove('open'); renderStories(); }
+document.getElementById('storyViewer').onclick=e=>{ if(e.target.id==='storyViewer') closeStory(); };
+
+// Check pending photo from camera
+if(sessionStorage.getItem('mw_pending_photo')) openComposer();
+
+renderStories(); renderFeed();
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Notifications · Meetwoyou</title>
+<link rel="icon" href="assets/favicon.svg"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+<div class="app">
+  <header class="app-header"><div class="brand">Activity</div><a class="icon-btn" href="feed.html"><i class="fa-solid fa-house"></i></a></header>
+  <div class="chip-row"><button class="chip active">All</button><button class="chip">Mentions</button><button class="chip">Likes</button><button class="chip">Follows</button></div>
+  <div id="list"></div>
+</div>
+<div id="nav"></div>
+<script src="assets/app.js"></script>
+<script>
+MW.Auth.require();
+document.getElementById('nav').innerHTML = MW.navHTML('inbox');
+const icons = {like:'<i class="fa-solid fa-heart" style="color:#ef4444"></i>',follow:'<i class="fa-solid fa-user-plus" style="color:#22c55e"></i>',comment:'<i class="fa-solid fa-comment" style="color:#22d3ee"></i>',mention:'<i class="fa-solid fa-at" style="color:#a855f7"></i>'};
+const list = MW.Store.get().notifications;
+document.getElementById('list').innerHTML = list.map(n=>{
+  const u = MW.user(n.userId);
+  return `<div class="notif"><img src="${u.avatar}"/><div class="txt"><b>${u.name}</b> ${n.text} <span class="t">${MW.timeAgo(n.t)} · ${icons[n.type]||''}</span></div>${n.type==='follow'?'<button class="btn btn-sm btn-primary">Follow</button>':''}</div>`;
+}).join('') || '<div class="empty"><i class="fa-regular fa-bell"></i>No activity yet</div>';
+</script>
+</body>
+</html>

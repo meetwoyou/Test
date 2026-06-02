@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Messages · Meetwoyou</title>
+<link rel="icon" href="assets/favicon.svg"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+<div class="app">
+  <header class="app-header" id="header">
+    <div class="brand-row"><button class="icon-btn" id="backBtn" style="display:none" onclick="showList()"><i class="fa-solid fa-arrow-left"></i></button><div class="brand" id="title">Messages</div></div>
+    <a class="icon-btn" href="feed.html"><i class="fa-solid fa-house"></i></a>
+  </header>
+
+  <div id="listView">
+    <div class="search-bar input-icon"><i class="fa-solid fa-magnifying-glass"></i><input class="input" placeholder="Search messages"/></div>
+    <div id="chatList"></div>
+  </div>
+
+  <div id="threadView" style="display:none">
+    <div id="thread" class="thread" style="padding-bottom:80px"></div>
+    <div class="chat-input-bar">
+      <input class="input" id="msgInput" placeholder="Message..."/>
+      <button class="btn btn-primary" onclick="sendMsg()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+<div id="nav"></div>
+<script src="assets/app.js"></script>
+<script>
+MW.Auth.require();
+document.getElementById('nav').innerHTML = MW.navHTML('inbox');
+let activeChat=null;
+
+function renderList(){
+  const s = MW.Store.get();
+  document.getElementById('chatList').innerHTML = s.chats.map(c=>{
+    const u = MW.user(c.userId);
+    const last = c.messages[c.messages.length-1];
+    return `<div class="chat-row" onclick="openChat('${c.id}')">
+      <img src="${u.avatar}"/>
+      <div class="chat-meta">
+        <div class="chat-name"><span>${u.name}</span><span class="chat-time">${MW.timeAgo(last.t)}</span></div>
+        <div class="chat-last">${last.from==='me'?'You: ':''}${last.text}</div>
+      </div>
+      ${c.unread?'<div class="unread"></div>':''}
+    </div>`;
+  }).join('');
+}
+
+function openChat(id){
+  activeChat=id;
+  document.getElementById('listView').style.display='none';
+  document.getElementById('threadView').style.display='block';
+  document.getElementById('backBtn').style.display='inline-flex';
+  const c = MW.Store.get().chats.find(x=>x.id===id);
+  const u = MW.user(c.userId);
+  document.getElementById('title').textContent = u.name;
+  renderThread();
+  MW.Store.update(s=>{ const x=s.chats.find(y=>y.id===id); if(x) x.unread=0; });
+}
+function showList(){
+  activeChat=null;
+  document.getElementById('listView').style.display='block';
+  document.getElementById('threadView').style.display='none';
+  document.getElementById('backBtn').style.display='none';
+  document.getElementById('title').textContent='Messages';
+  renderList();
+}
+function renderThread(){
+  const c = MW.Store.get().chats.find(x=>x.id===activeChat);
+  document.getElementById('thread').innerHTML = c.messages.map(m=>`<div class="bubble ${m.from==='me'?'out':'in'}">${m.text}</div>`).join('');
+  document.getElementById('thread').scrollIntoView({block:'end'});
+}
+function sendMsg(){
+  const v = document.getElementById('msgInput').value.trim(); if(!v) return;
+  MW.Store.update(s=>{ const c=s.chats.find(x=>x.id===activeChat); c.messages.push({from:'me',text:v,t:Date.now()}); });
+  document.getElementById('msgInput').value=''; renderThread();
+  setTimeout(()=>{ MW.Store.update(s=>{ const c=s.chats.find(x=>x.id===activeChat); c.messages.push({from:c.userId,text:'👍',t:Date.now()}); }); renderThread(); },900);
+}
+document.getElementById('msgInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') sendMsg(); });
+renderList();
+</script>
+</body>
+</html>

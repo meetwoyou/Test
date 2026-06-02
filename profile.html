@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Profile · Meetwoyou</title>
+<link rel="icon" href="assets/favicon.svg"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div class="brand" id="uname"></div>
+    <div style="display:flex;gap:4px">
+      <button class="icon-btn" onclick="MW.toast('Settings (demo)')"><i class="fa-solid fa-gear"></i></button>
+      <button class="icon-btn" onclick="MW.Auth.logout()" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </header>
+
+  <section class="profile-head">
+    <div class="profile-top">
+      <div class="avatar"><img id="avatar"/></div>
+      <div class="profile-stats">
+        <div class="profile-stat"><b id="posts">0</b><span>Posts</span></div>
+        <div class="profile-stat"><b id="followers">0</b><span>Followers</span></div>
+        <div class="profile-stat"><b id="following">0</b><span>Following</span></div>
+      </div>
+    </div>
+    <div class="profile-bio">
+      <div class="name" id="name"></div>
+      <div class="bio" id="bio"></div>
+    </div>
+    <div class="profile-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="openEdit()">Edit profile</button>
+      <button class="btn" style="flex:1" onclick="MW.toast('Link copied')">Share profile</button>
+      <a class="btn" href="admin.html" title="Admin"><i class="fa-solid fa-shield-halved"></i></a>
+    </div>
+    <div class="profile-tabs">
+      <div class="profile-tab active"><i class="fa-solid fa-table-cells"></i></div>
+      <div class="profile-tab"><i class="fa-regular fa-bookmark"></i></div>
+      <div class="profile-tab"><i class="fa-regular fa-heart"></i></div>
+    </div>
+  </section>
+  <div class="grid-3" id="grid"></div>
+</div>
+
+<div class="modal-back" id="editModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x icon-btn" onclick="closeEdit()"><i class="fa-solid fa-xmark"></i></button>
+    <h3>Edit profile</h3>
+    <div class="field"><label>Name</label><input class="input" id="ed_name"/></div>
+    <div class="field"><label>Username</label><input class="input" id="ed_user"/></div>
+    <div class="field"><label>Bio</label><textarea class="input" id="ed_bio"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveEdit()">Save</button>
+  </div>
+</div>
+
+<div id="nav"></div>
+<script src="assets/app.js"></script>
+<script>
+const me = MW.Auth.require();
+document.getElementById('nav').innerHTML = MW.navHTML('me');
+
+function render(){
+  const s = MW.Store.get();
+  const my = s.users.find(u=>u.id==='me_user');
+  const data = {...me, ...(my||{})};
+  document.getElementById('uname').textContent = '@'+data.username;
+  document.getElementById('avatar').src = data.avatar;
+  document.getElementById('name').textContent = data.name;
+  document.getElementById('bio').textContent = data.bio||'';
+  const myPosts = s.posts.filter(p=>p.userId==='me_user');
+  document.getElementById('posts').textContent = myPosts.length;
+  document.getElementById('followers').textContent = data.followers||0;
+  document.getElementById('following').textContent = data.following||0;
+  document.getElementById('grid').innerHTML = myPosts.length? myPosts.map(p=>`<div class="cell">${p.image?`<img src="${p.image}"/>`:`<div style="padding:8px;font-size:11px;color:var(--muted)">${(p.text||'').slice(0,80)}</div>`}</div>`).join('') : '<div class="empty" style="grid-column:1/-1"><i class="fa-regular fa-image"></i>No posts yet — share your first photo!</div>';
+}
+function openEdit(){
+  document.getElementById('ed_name').value=me.name;
+  document.getElementById('ed_user').value=me.username;
+  document.getElementById('ed_bio').value=me.bio||'';
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('open');}
+function saveEdit(){
+  const patch={name:document.getElementById('ed_name').value.trim(),username:document.getElementById('ed_user').value.trim(),bio:document.getElementById('ed_bio').value.trim()};
+  MW.Auth.update(patch);
+  MW.Store.update(s=>{ let u=s.users.find(x=>x.id==='me_user'); if(!u){ u={id:'me_user',avatar:me.avatar,followers:0,following:0,verified:false}; s.users.push(u);} Object.assign(u,patch); });
+  closeEdit(); location.reload();
+}
+render();
+</script>
+</body>
+</html>

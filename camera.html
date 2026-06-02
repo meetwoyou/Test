@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#000000"/>
+<title>Camera · Meetwoyou</title>
+<link rel="icon" href="assets/favicon.svg"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body style="background:#000">
+
+<!-- Camera screen -->
+<div class="cam-wrap" id="camScreen">
+  <div class="cam-top">
+    <a class="cam-mini" href="feed.html"><i class="fa-solid fa-xmark"></i></a>
+    <div style="display:flex;gap:10px">
+      <button class="cam-mini" id="flashBtn" title="Flash"><i class="fa-solid fa-bolt"></i></button>
+      <button class="cam-mini" id="switchBtn" title="Switch"><i class="fa-solid fa-camera-rotate"></i></button>
+    </div>
+  </div>
+  <div class="cam-stage">
+    <video id="video" playsinline autoplay muted></video>
+    <div class="cam-flash" id="flash"></div>
+  </div>
+  <div class="mode-row">
+    <span class="mode" data-mode="story">Story</span>
+    <span class="mode active" data-mode="photo">Photo</span>
+    <span class="mode" data-mode="post">Post</span>
+  </div>
+  <div class="cam-bottom">
+    <label class="cam-mini" title="Upload">
+      <i class="fa-regular fa-image"></i>
+      <input type="file" accept="image/*" id="uploadFile" style="display:none"/>
+    </label>
+    <button class="shutter" id="shutter" aria-label="Capture"></button>
+    <button class="cam-mini" onclick="MW.toast('Timer (demo)')"><i class="fa-regular fa-clock"></i></button>
+  </div>
+</div>
+
+<!-- Editor screen -->
+<div class="editor" id="editorScreen" style="display:none">
+  <div class="editor-top">
+    <button class="cam-mini" onclick="backToCam()"><i class="fa-solid fa-arrow-left"></i></button>
+    <div style="font-weight:700">Edit photo</div>
+    <button class="btn btn-primary btn-sm" onclick="savePhoto()">Next</button>
+  </div>
+  <div class="editor-stage" id="stage">
+    <img id="editImg" class="flt-original"/>
+    <div class="editor-text-overlay" id="overlay" contenteditable="false" style="display:none"></div>
+  </div>
+  <div class="editor-tools">
+    <div class="tool-tabs">
+      <button class="tab active" data-tab="filter">Filter</button>
+      <button class="tab" data-tab="adjust">Adjust</button>
+      <button class="tab" data-tab="crop">Crop</button>
+      <button class="tab" data-tab="text">Text</button>
+    </div>
+
+    <div class="tool-panel" id="panel-filter">
+      <div class="filters" id="filters"></div>
+    </div>
+    <div class="tool-panel" id="panel-adjust" style="display:none">
+      <div class="slider-row"><i class="fa-solid fa-sun"></i><span style="width:80px">Brightness</span><input type="range" id="brightness" min="50" max="150" value="100"/></div>
+      <div class="slider-row"><i class="fa-solid fa-circle-half-stroke"></i><span style="width:80px">Contrast</span><input type="range" id="contrast" min="50" max="150" value="100"/></div>
+      <div class="slider-row"><i class="fa-solid fa-droplet"></i><span style="width:80px">Saturation</span><input type="range" id="saturate" min="0" max="200" value="100"/></div>
+      <div class="slider-row"><i class="fa-solid fa-wand-magic-sparkles"></i><span style="width:80px">Blur</span><input type="range" id="blur" min="0" max="10" value="0"/></div>
+    </div>
+    <div class="tool-panel" id="panel-crop" style="display:none">
+      <div class="ratio-row">
+        <button class="ratio-chip active" data-ratio="auto">Original</button>
+        <button class="ratio-chip" data-ratio="1/1">1:1</button>
+        <button class="ratio-chip" data-ratio="4/5">4:5</button>
+        <button class="ratio-chip" data-ratio="9/16">9:16</button>
+        <button class="ratio-chip" data-ratio="16/9">16:9</button>
+      </div>
+    </div>
+    <div class="tool-panel" id="panel-text" style="display:none">
+      <div style="padding:10px 16px;display:flex;gap:8px;align-items:center">
+        <input class="input" id="overlayText" placeholder="Type to add text"/>
+        <button class="btn btn-sm btn-primary" onclick="applyText()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+MW.Auth.require();
+let stream=null, facing='environment', flashOn=false, currentMode='photo';
+const video = document.getElementById('video');
+
+async function startCam(){
+  try{
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:false});
+    video.srcObject = stream;
+  }catch(e){ MW.toast('Camera permission denied'); }
+}
+startCam();
+
+document.getElementById('switchBtn').onclick=()=>{ facing = facing==='user'?'environment':'user'; startCam(); };
+document.getElementById('flashBtn').onclick=e=>{ flashOn=!flashOn; e.currentTarget.style.color = flashOn?'#fbbf24':'#fff'; };
+document.querySelectorAll('.mode').forEach(m=>m.onclick=()=>{ document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active')); m.classList.add('active'); currentMode=m.dataset.mode; });
+
+document.getElementById('shutter').onclick=()=>{
+  if(!stream){ MW.toast('Camera not ready'); return; }
+  if(flashOn){ const f=document.getElementById('flash'); f.style.opacity='1'; setTimeout(()=>f.style.opacity='0',150); }
+  const c = document.createElement('canvas'); c.width=video.videoWidth; c.height=video.videoHeight;
+  const ctx=c.getContext('2d');
+  if(facing==='user'){ ctx.translate(c.width,0); ctx.scale(-1,1); }
+  ctx.drawImage(video,0,0);
+  openEditor(c.toDataURL('image/jpeg',0.92));
+};
+
+document.getElementById('uploadFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=ev=>openEditor(ev.target.result); r.readAsDataURL(f);
+};
+
+// Editor
+const filters = [
+  {k:'original',name:'Original'},{k:'mono',name:'Mono'},{k:'vintage',name:'Vintage'},{k:'vivid',name:'Vivid'},
+  {k:'cool',name:'Cool'},{k:'warm',name:'Warm'},{k:'noir',name:'Noir'},{k:'fade',name:'Fade'}
+];
+let currentFilter='original';
+let adjust = {b:100,c:100,s:100,blur:0};
+
+function openEditor(dataUrl){
+  document.getElementById('camScreen').style.display='none';
+  document.getElementById('editorScreen').style.display='flex';
+  const img = document.getElementById('editImg');
+  img.src=dataUrl;
+  // build filter chips
+  document.getElementById('filters').innerHTML = filters.map(f=>`
+    <div class="filter-chip ${f.k===currentFilter?'active':''}" data-f="${f.k}">
+      <div class="thumb flt-${f.k}" style="background-image:url('${dataUrl}')"></div>${f.name}</div>`).join('');
+  document.querySelectorAll('.filter-chip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('.filter-chip').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active'); currentFilter=c.dataset.f; updateFilter();
+  });
+  updateFilter();
+}
+function backToCam(){ document.getElementById('editorScreen').style.display='none'; document.getElementById('camScreen').style.display='flex'; }
+
+function updateFilter(){
+  const img = document.getElementById('editImg');
+  img.className = 'flt-'+currentFilter;
+  const extra = ` brightness(${adjust.b}%) contrast(${adjust.c}%) saturate(${adjust.s}%) blur(${adjust.blur}px)`;
+  // Combine: use inline style additionally
+  const presets = {original:'',mono:'grayscale(1) contrast(1.05)',vintage:'sepia(.55) contrast(.95) saturate(1.1)',vivid:'saturate(1.6) contrast(1.1)',cool:'hue-rotate(180deg) saturate(1.1)',warm:'sepia(.3) saturate(1.3) hue-rotate(-15deg)',noir:'grayscale(1) contrast(1.4) brightness(.9)',fade:'contrast(.85) brightness(1.05) saturate(.8)'};
+  img.style.filter = (presets[currentFilter]||'')+' '+extra;
+}
+
+['brightness','contrast','saturate','blur'].forEach(id=>{
+  document.getElementById(id).oninput=e=>{
+    if(id==='brightness') adjust.b=e.target.value;
+    if(id==='contrast') adjust.c=e.target.value;
+    if(id==='saturate') adjust.s=e.target.value;
+    if(id==='blur') adjust.blur=e.target.value;
+    updateFilter();
+  };
+});
+
+document.querySelectorAll('.tool-tabs .tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tool-tabs .tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  ['filter','adjust','crop','text'].forEach(p=>document.getElementById('panel-'+p).style.display='none');
+  document.getElementById('panel-'+t.dataset.tab).style.display='block';
+});
+
+document.querySelectorAll('.ratio-chip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.ratio-chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+  const img=document.getElementById('editImg');
+  if(c.dataset.ratio==='auto'){ img.style.aspectRatio=''; img.style.objectFit='contain'; }
+  else { img.style.aspectRatio=c.dataset.ratio; img.style.objectFit='cover'; }
+});
+
+function applyText(){
+  const v = document.getElementById('overlayText').value.trim();
+  const o = document.getElementById('overlay');
+  if(!v){ o.style.display='none'; return; }
+  o.textContent=v; o.style.display='block';
+}
+
+async function savePhoto(){
+  // Bake filters into canvas and save
+  const img = document.getElementById('editImg');
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const ctx = c.getContext('2d');
+  ctx.filter = getComputedStyle(img).filter;
+  ctx.drawImage(img,0,0,c.width,c.height);
+  // text overlay
+  const ov = document.getElementById('overlay');
+  if(ov.style.display!=='none' && ov.textContent){
+    ctx.filter='none';
+    ctx.fillStyle='#fff'; ctx.textAlign='center';
+    const fs = Math.round(c.width*0.07);
+    ctx.font=`800 ${fs}px Plus Jakarta Sans, Inter, sans-serif`;
+    ctx.shadowColor='rgba(0,0,0,.7)'; ctx.shadowBlur=12;
+    ctx.fillText(ov.textContent, c.width/2, c.height*0.4);
+  }
+  const data = c.toDataURL('image/jpeg',0.9);
+  if(currentMode==='story'){
+    MW.Store.update(s=>s.stories.unshift({id:'s'+Date.now(),userId:'me_user',image:data,time:Date.now(),seen:false}));
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    MW.toast('Story shared!'); setTimeout(()=>location.href='feed.html',600);
+  } else {
+    sessionStorage.setItem('mw_pending_photo', data);
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    location.href='feed.html';
+  }
+}
+
+window.addEventListener('pagehide',()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); });
+</script>
+</body>
+</html>

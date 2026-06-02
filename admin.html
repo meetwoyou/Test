@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin · Meetwoyou</title>
+<link rel="icon" href="assets/favicon.svg"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body style="padding:0">
+<div class="admin">
+  <aside class="admin-side">
+    <div class="brand-row"><img src="assets/icon-192.png" style="width:32px;border-radius:8px"/><div class="brand">Admin</div></div>
+    <a class="active" data-tab="dash"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+    <a data-tab="users"><i class="fa-solid fa-users"></i> Users</a>
+    <a data-tab="posts"><i class="fa-solid fa-file-lines"></i> Posts</a>
+    <a data-tab="reports"><i class="fa-solid fa-flag"></i> Reports</a>
+    <a data-tab="settings"><i class="fa-solid fa-gear"></i> Settings</a>
+    <a href="feed.html" style="margin-top:auto"><i class="fa-solid fa-arrow-left"></i> Back to app</a>
+  </aside>
+  <main class="admin-main">
+    <div id="tab-dash">
+      <h2 style="margin-top:0">Dashboard</h2>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">Total users</div><div class="num" id="sUsers">0</div><div class="delta">+12.4% this week</div></div>
+        <div class="stat-card"><div class="label">Posts</div><div class="num" id="sPosts">0</div><div class="delta">+8.2%</div></div>
+        <div class="stat-card"><div class="label">Active stories</div><div class="num" id="sStories">0</div><div class="delta">+24%</div></div>
+        <div class="stat-card"><div class="label">Reports</div><div class="num">3</div><div class="delta" style="color:var(--warning)">Needs review</div></div>
+      </div>
+      <div class="card" style="padding:18px;margin-bottom:18px">
+        <h3 style="margin-top:0">Engagement (last 7 days)</h3>
+        <svg viewBox="0 0 600 180" style="width:100%;height:180px">
+          <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7c3aed" stop-opacity=".6"/><stop offset="1" stop-color="#7c3aed" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0,140 C60,110 100,80 160,90 C220,100 260,40 320,55 C380,70 420,110 480,85 C540,60 580,70 600,55 L600,180 L0,180 Z" fill="url(#g)"/>
+          <path d="M0,140 C60,110 100,80 160,90 C220,100 260,40 320,55 C380,70 420,110 480,85 C540,60 580,70 600,55" fill="none" stroke="#a855f7" stroke-width="3"/>
+        </svg>
+      </div>
+    </div>
+
+    <div id="tab-users" style="display:none">
+      <h2>Users</h2>
+      <table class="table"><thead><tr><th>User</th><th>Username</th><th>Followers</th><th>Status</th><th></th></tr></thead><tbody id="uTbody"></tbody></table>
+    </div>
+    <div id="tab-posts" style="display:none">
+      <h2>Posts</h2>
+      <table class="table"><thead><tr><th>Author</th><th>Content</th><th>Likes</th><th>Time</th><th></th></tr></thead><tbody id="pTbody"></tbody></table>
+    </div>
+    <div id="tab-reports" style="display:none">
+      <h2>Reports</h2>
+      <div class="card" style="padding:14px;margin-bottom:10px"><b>Spam report</b> on post <i>p2</i> · <span class="badge warn">Pending</span></div>
+      <div class="card" style="padding:14px;margin-bottom:10px"><b>Abusive comment</b> by @rohan · <span class="badge bad">Critical</span></div>
+      <div class="card" style="padding:14px"><b>Fake account</b> @user99 · <span class="badge ok">Resolved</span></div>
+    </div>
+    <div id="tab-settings" style="display:none">
+      <h2>Settings</h2>
+      <div class="card" style="padding:18px;max-width:480px">
+        <div class="field"><label>Platform name</label><input class="input" value="Meetwoyou"/></div>
+        <div class="field"><label>Support email</label><input class="input" value="support@meetwoyou.com"/></div>
+        <div class="field"><label>Default theme</label><select class="input"><option>Dark</option><option>Light</option></select></div>
+        <button class="btn btn-primary" onclick="MW.toast('Saved')">Save changes</button>
+        <button class="btn" style="margin-left:8px" onclick="if(confirm('Reset all demo data?')){MW.Store.reset();location.reload();}">Reset data</button>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="assets/app.js"></script>
+<script>
+const s = MW.Store.get();
+document.getElementById('sUsers').textContent = s.users.length + 8420;
+document.getElementById('sPosts').textContent = s.posts.length + 14302;
+document.getElementById('sStories').textContent = s.stories.length + 380;
+
+document.getElementById('uTbody').innerHTML = s.users.map(u=>`<tr><td style="display:flex;align-items:center;gap:8px"><img src="${u.avatar}" style="width:32px;height:32px;border-radius:50%"/>${u.name}</td><td>@${u.username}</td><td>${u.followers}</td><td><span class="badge ok">Active</span></td><td><button class="btn btn-sm">View</button></td></tr>`).join('');
+document.getElementById('pTbody').innerHTML = s.posts.map(p=>{const u=MW.user(p.userId);return `<tr><td>${u.name}</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.text||'(image)').slice(0,80)}</td><td>${p.likes}</td><td>${MW.timeAgo(p.time)}</td><td><button class="btn btn-sm" style="color:var(--danger)">Remove</button></td></tr>`;}).join('');
+
+document.querySelectorAll('.admin-side a[data-tab]').forEach(a=>a.onclick=()=>{
+  document.querySelectorAll('.admin-side a').forEach(x=>x.classList.remove('active'));
+  a.classList.add('active');
+  ['dash','users','posts','reports','settings'].forEach(t=>document.getElementById('tab-'+t).style.display='none');
+  document.getElementById('tab-'+a.dataset.tab).style.display='block';
+});
+</script>
+</body>
+</html>
